@@ -1,0 +1,52 @@
+# Часть 1: Работа с числами
+# Создаем файлы с числами
+with open('file1.txt', 'w') as f:
+    f.write('10 -5 3 -8 15 -2 7 -1 12 -9')
+
+with open('file2.txt', 'w') as f:
+    f.write('3 8 -5 20 -2 6 -9 14 -1 4')
+
+# Читаем и обрабатываем числа
+with open('file1.txt') as f:
+    nums1 = list(map(int, f.read().split()))
+
+with open('file2.txt') as f:
+    nums2 = list(map(int, f.read().split()))
+
+# Анализируем данные
+common = set(nums1) & set(nums2)
+all_nums = nums1 + nums2
+neg = sum(1 for n in all_nums if n < 0)
+pos = sum(1 for n in all_nums if n > 0)
+
+# Записываем результаты
+with open('result.txt', 'w') as f:
+    f.write(f"Первый файл: {nums1}\nВторой файл: {nums2}\n\n")
+    f.write(f"Общие элементы: {list(common)}\n\n")
+    f.write(f"Всего элементов: {len(all_nums)}\n")
+    f.write(f"Отрицательных: {neg}\n")
+    f.write(f"Положительных: {pos}")
+
+# Часть 2: Работа с текстом
+# Создаем исходный файл
+poem = """У лукоморья дуб зелёный;
+Златая цепь на дубе том:
+И днём и ночью кот учёный
+Всё ходит по цепи кругом;"""
+
+with open('text18-27.txt', 'w') as f:
+    f.write(poem)
+
+# Читаем и выводим
+with open('text18-27.txt') as f:
+    text = f.read()
+    print("Содержимое файла:")
+    print(text)
+    print(f"Пробелов: {text.count(' ')}")
+
+# Добавляем фразу пользователя
+user_text = input("Введите фразу: ")
+with open('new_poem.txt', 'w') as f:
+    f.write(text + '\n' + user_text)
+
+print("Файл new_poem.txt создан!")
