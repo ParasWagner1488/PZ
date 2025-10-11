@@ -77,14 +77,107 @@ def find_sales_by_customer(customer):
     cursor.execute('SELECT * FROM sales WHERE customer = ?', (customer,))
     sales = cursor.fetchall()
     
+    if not sales:
+        print(f"Продажи для покупателя '{customer}' не найдены.")
+        return
+    
     print(f"\nПродажи для покупателя '{customer}':")
     print("-"*60)
     total = 0
     for sale in sales:
-        print(f"{sale[2]} - {sale[4]} {sale[3]} - {sale[6]} руб.")
+        print(f"ID: {sale[0]} - {sale[2]} - {sale[4]} {sale[3]} - {sale[6]} руб.")
         total += sale[6]
     
     print(f"Итого: {total} руб.")
+    conn.close()
+
+# Удаление продажи по ID
+def delete_sale(sale_id):
+    conn = sqlite3.connect('store.db')
+    cursor = conn.cursor()
+    
+    # Проверяем существование записи
+    cursor.execute('SELECT * FROM sales WHERE id = ?', (sale_id,))
+    sale = cursor.fetchone()
+    
+    if sale:
+        cursor.execute('DELETE FROM sales WHERE id = ?', (sale_id,))
+        conn.commit()
+        print(f"Продажа с ID {sale_id} успешно удалена.")
+    else:
+        print(f"Продажа с ID {sale_id} не найдена.")
+    
+    conn.close()
+
+# Обновление информации о продаже
+def update_sale(sale_id):
+    conn = sqlite3.connect('store.db')
+    cursor = conn.cursor()
+    
+    # Проверяем существование записи
+    cursor.execute('SELECT * FROM sales WHERE id = ?', (sale_id,))
+    sale = cursor.fetchone()
+    
+    if not sale:
+        print(f"Продажа с ID {sale_id} не найдена.")
+        conn.close()
+        return
+    
+    print(f"\nТекущие данные продажи ID {sale_id}:")
+    print(f"Покупатель: {sale[1]}")
+    print(f"Товар: {sale[2]}")
+    print(f"Единица измерения: {sale[3]}")
+    print(f"Количество: {sale[4]}")
+    print(f"Цена: {sale[5]} руб.")
+    print(f"Сумма: {sale[6]} руб.")
+    
+    print("\nВведите новые данные (оставьте пустым для сохранения текущего значения):")
+    
+    customer = input(f"Покупатель [{sale[1]}]: ") or sale[1]
+    product = input(f"Товар [{sale[2]}]: ") or sale[2]
+    unit = input(f"Единица измерения [{sale[3]}]: ") or sale[3]
+    
+    quantity_input = input(f"Количество [{sale[4]}]: ")
+    quantity = float(quantity_input) if quantity_input else sale[4]
+    
+    price_input = input(f"Цена за единицу [{sale[5]}]: ")
+    price = float(price_input) if price_input else sale[5]
+    
+    total = quantity * price
+    date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    
+    cursor.execute('''
+        UPDATE sales 
+        SET customer = ?, product = ?, unit = ?, quantity = ?, price = ?, total = ?, date = ?
+        WHERE id = ?
+    ''', (customer, product, unit, quantity, price, total, date, sale_id))
+    
+    conn.commit()
+    conn.close()
+    print(f"Продажа с ID {sale_id} успешно обновлена.")
+    print(f"Новая общая стоимость: {total} руб.")
+
+# Поиск продажи по ID для просмотра деталей
+def find_sale_by_id(sale_id):
+    conn = sqlite3.connect('store.db')
+    cursor = conn.cursor()
+    
+    cursor.execute('SELECT * FROM sales WHERE id = ?', (sale_id,))
+    sale = cursor.fetchone()
+    
+    if sale:
+        print(f"\nДетали продажи ID {sale_id}:")
+        print("-"*40)
+        print(f"Покупатель: {sale[1]}")
+        print(f"Товар: {sale[2]}")
+        print(f"Единица измерения: {sale[3]}")
+        print(f"Количество: {sale[4]}")
+        print(f"Цена за единицу: {sale[5]} руб.")
+        print(f"Общая стоимость: {sale[6]} руб.")
+        print(f"Дата продажи: {sale[7]}")
+    else:
+        print(f"Продажа с ID {sale_id} не найдена.")
+    
     conn.close()
 
 # Основная программа
@@ -110,7 +203,10 @@ def main():
         print("1 - Просмотреть все продажи")
         print("2 - Добавить новую продажу")
         print("3 - Найти продажи по покупателю")
-        print("4 - Выход")
+        print("4 - Найти продажу по ID")
+        print("5 - Обновить продажу")
+        print("6 - Удалить продажу")
+        print("7 - Выход")
         
         choice = input("Выберите действие: ")
         
@@ -127,6 +223,31 @@ def main():
             customer = input("Введите имя покупателя: ")
             find_sales_by_customer(customer)
         elif choice == '4':
+            try:
+                sale_id = int(input("Введите ID продажи: "))
+                find_sale_by_id(sale_id)
+            except ValueError:
+                print("Ошибка: Введите корректный ID (число).")
+        elif choice == '5':
+            try:
+                sale_id = int(input("Введите ID продажи для обновления: "))
+                update_sale(sale_id)
+            except ValueError:
+                print("Ошибка: Введите корректный ID (число).")
+        elif choice == '6':
+            try:
+                sale_id = int(input("Введите ID продажи для удаления: "))
+                # Показываем детали перед удалением
+                find_sale_by_id(sale_id)
+                confirm = input("Вы уверены, что хотите удалить эту продажу? (y/n): ")
+                if confirm.lower() == 'y':
+                    delete_sale(sale_id)
+                else:
+                    print("Удаление отменено.")
+            except ValueError:
+                print("Ошибка: Введите корректный ID (число).")
+        elif choice == '7':
+            print("Выход из программы.")
             break
         else:
             print("Неверный выбор!")
