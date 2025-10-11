@@ -2,121 +2,163 @@
 Из исходного текстового файла (Dostoevsky.txt) выбрать блок информации за 1857 год и поместить его в новый текстовый файл."""
 
 
-def extract_1857_block(input_file, output_file):
+"""
+ПОСТАНОВКА ЗАДАЧИ:
+Из исходного текстового файла (Dostoevsky.txt) выбрать блок информации за 1857 год 
+и поместить его в новый текстовый файл.
+
+Требования:
+- Использовать регулярные выражения для поиска блоков
+- Шаблон должен быть максимально универсальным
+- Не вносить изменений в исходный файл
+- Код должен соответствовать PEP 8
+- Обрабатывать различные форматы данных
+"""
+
+import re
+import os
+
+
+def extract_year_block(input_file: str, output_file: str, target_year: int = 1857) -> bool:
     """
-    Извлекает блок информации за 1857 год из исходного файла и сохраняет в новый файл
+    Извлекает блок информации за указанный год из исходного файла 
+    и сохраняет в новый файл с использованием регулярных выражений.
+    
+    Args:
+        input_file (str): Путь к исходному файлу
+        output_file (str): Путь к выходному файлу
+        target_year (int): Год для извлечения (по умолчанию 1857)
+    
+    Returns:
+        bool: True если операция успешна, False в противном случае
     """
+    # Проверяем существование исходного файла
+    if not os.path.exists(input_file):
+        print(f"Ошибка: Файл {input_file} не найден")
+        return False
+    
     try:
+        # Читаем содержимое файла с обработкой различных кодировок
         with open(input_file, 'r', encoding='utf-8') as file:
             content = file.read()
-        
-        # Ищем начало блока за 1857 год
-        start_marker = "1857"
-        start_index = content.find(start_marker)
-        
-        if start_index == -1:
-            print("Блок за 1857 год не найден в файле")
+    except UnicodeDecodeError:
+        try:
+            with open(input_file, 'r', encoding='cp1251') as file:
+                content = file.read()
+        except UnicodeDecodeError:
+            print("Ошибка: Не удалось декодировать файл. Проверьте кодировку.")
             return False
-        
-        # Ищем конец блока (следующий год или конец файла)
-        end_index = -1
-        years = ["1858", "1859", "1860", "1861", "1862", "1863", "1864", "1865"]
-        
-        for year in years:
-            end_index = content.find(year, start_index + 1)
-            if end_index != -1:
-                break
-        
-        # Если следующий год не найден, берем до конца файла
-        if end_index == -1:
-            end_index = len(content)
-        
-        # Извлекаем блок за 1857 год
-        block_1857 = content[start_index:end_index].strip()
-        
-        # Сохраняем в новый файл
+    except Exception as e:
+        print(f"Ошибка при чтении файла: {e}")
+        return False
+    
+    # Универсальное регулярное выражение для поиска блока по году
+    # Ищет год в различных форматах: "1857", " 1857 ", "1857:", "1857 год" и т.д.
+    year_pattern = rf"""
+        ({{0}})                    # Начало блока с годом
+        \s*{target_year}\s*       # Искомый год с возможными пробелами
+        [^\d]*                    # Любые нецифровые символы после года
+        (.*?)                     # Содержимое блока (нежадный поиск)
+        (?=\s*\d{{4}}\s*|$)       # Остановка перед следующим годом или концом файла
+    """
+    
+    # Компилируем регулярное выражение с флагами:
+    # re.DOTALL - точка включает переносы строк
+    # re.VERBOSE - позволяет использовать комментарии и пробелы
+    # re.IGNORECASE - игнорирует регистр
+    pattern = re.compile(year_pattern.format(r'.*?'), re.DOTALL | re.VERBOSE | re.IGNORECASE)
+    
+    # Поиск всех совпадений
+    matches = pattern.findall(content)
+    
+    if not matches:
+        print(f"Блок за {target_year} год не найден в файле")
+        return False
+    
+    # Извлекаем содержимое блока (вторая группа захвата)
+    # Используем списковое включение для фильтрации непустых результатов
+    blocks = [match[1].strip() for match in matches if match[1].strip()]
+    
+    if not blocks:
+        print(f"Найден заголовок {target_year} года, но содержимое блока пустое")
+        return False
+    
+    try:
+        # Сохраняем все найденные блоки за указанный год
         with open(output_file, 'w', encoding='utf-8') as output:
-            output.write(block_1857)
+            for i, block in enumerate(blocks, 1):
+                if len(blocks) > 1:
+                    output.write(f"=== Блок {i} ===\n")
+                output.write(block)
+                if len(blocks) > 1 and i < len(blocks):
+                    output.write("\n\n" + "="*50 + "\n\n")
         
-        print(f"Блок за 1857 год успешно извлечен и сохранен в файл: {output_file}")
-        print(f"Размер извлеченного блока: {len(block_1857)} символов")
-        
+        print(f"Успешно извлечено {len(blocks)} блок(ов) за {target_year} год")
+        print(f"Результат сохранен в файл: {output_file}")
         return True
         
-    except FileNotFoundError:
-        print(f"Файл {input_file} не найден")
-        return False
     except Exception as e:
-        print(f"Произошла ошибка: {e}")
+        print(f"Ошибка при записи в файл: {e}")
         return False
 
-# Альтернативная версия, если данные структурированы по-другому
-def extract_1857_block_alternative(input_file, output_file):
+
+def preview_extracted_content(output_file: str, max_preview: int = 500) -> None:
     """
-    Альтернативный метод для случаев, когда блоки разделены пустыми строками
+    Показывает превью извлеченного содержимого.
+    
+    Args:
+        output_file (str): Путь к файлу для превью
+        max_preview (int): Максимальное количество символов для показа
     """
+    if not os.path.exists(output_file):
+        return
+    
     try:
-        with open(input_file, 'r', encoding='utf-8') as file:
-            lines = file.readlines()
+        with open(output_file, 'r', encoding='utf-8') as file:
+            content = file.read()
         
-        block_lines = []
-        in_1857_block = False
+        print(f"\nПревью извлеченного блока ({len(content)} символов):")
+        print("=" * 60)
         
-        for line in lines:
-            # Если находим начало блока 1857 года
-            if "1857" in line and not in_1857_block:
-                in_1857_block = True
-                block_lines.append(line)
-            elif in_1857_block:
-                # Проверяем, не начался ли следующий блок (следующий год)
-                if any(year in line for year in ["1858", "1859", "1860"]):
-                    break
-                # Или если пустая строка означает конец блока
-                elif line.strip() == "" and len(block_lines) > 0:
-                    # Можно раскомментировать следующую строку, если пустая строка означает конец блока
-                    # break
-                    block_lines.append(line)
-                else:
-                    block_lines.append(line)
+        # Генератор для обработки длинного текста
+        preview = content[:max_preview]
+        print(preview)
         
-        if block_lines:
-            with open(output_file, 'w', encoding='utf-8') as output:
-                output.writelines(block_lines)
-            
-            print(f"Блок за 1857 год успешно извлечен и сохранен в файл: {output_file}")
-            return True
-        else:
-            print("Блок за 1857 год не найден")
-            return False
+        if len(content) > max_preview:
+            print("... (файл продолжается)")
+        print("=" * 60)
             
     except Exception as e:
-        print(f"Произошла ошибка: {e}")
-        return False
+        print(f"Ошибка при чтении превью: {e}")
 
-# Основная программа
-if __name__ == "__main__":
+
+def main() -> None:
+    """Основная функция программы."""
+    # Параметры файлов
     input_filename = "Dostoevsky.txt"
     output_filename = "Dostoevsky_1857.txt"
+    target_year = 1857
     
-    print("Извлечение блока информации за 1857 год...")
+    print("=" * 70)
+    print("ПРОГРАММА ДЛЯ ИЗВЛЕЧЕНИЯ БЛОКА ИНФОРМАЦИИ ЗА 1857 ГОД")
+    print("=" * 70)
+    print(f"Исходный файл: {input_filename}")
+    print(f"Выходной файл: {output_filename}")
+    print(f"Целевой год: {target_year}")
+    print("-" * 70)
     
-    # Пробуем первый метод
-    success = extract_1857_block(input_filename, output_filename)
+    # Выполняем извлечение блока
+    success = extract_year_block(input_filename, output_filename, target_year)
     
-    # Если первый метод не сработал, пробуем альтернативный
-    if not success:
-        print("Пробуем альтернативный метод...")
-        extract_1857_block_alternative(input_filename, output_filename)
+    if success:
+        # Показываем превью результата
+        preview_extracted_content(output_filename)
+    else:
+        print("Извлечение блока завершилось неудачно")
     
-    # Показываем preview извлеченного содержимого
-    try:
-        with open(output_filename, 'r', encoding='utf-8') as file:
-            preview = file.read(500)  # Первые 500 символов
-            print("\nPreview извлеченного блока:")
-            print("=" * 50)
-            print(preview)
-            if len(preview) == 500:
-                print("... (файл продолжается)")
-            print("=" * 50)
-    except:
-        pass
+    print("\nПрограмма завершена.")
+
+
+# Точка входа в программу
+if __name__ == "__main__":
+    main()
